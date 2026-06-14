@@ -9,7 +9,8 @@
 	version="0.7.0"
 	library="https://github.com/zaphoyd/websocketpp"
 	url="https://github.com/wieden-kennedy/Cinder-WebSocketPP"
-	>
+		core="true"
+		>
 	<supports os="macosx" />
 	<supports os="msw" />
 	
