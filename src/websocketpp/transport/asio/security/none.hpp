@@ -169,7 +169,7 @@ protected:
         }
 
         m_socket = lib::make_shared<lib::asio::ip::tcp::socket>(
-            lib::ref(*service));
+            static_cast<lib::asio::io_context&>(*service));
 
         m_state = READY;
 

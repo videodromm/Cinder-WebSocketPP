@@ -192,7 +192,7 @@ public:
         m_io_service = ptr;
         m_external_io_service = true;
         m_acceptor = lib::make_shared<lib::asio::ip::tcp::acceptor>(
-            lib::ref(*m_io_service));
+            static_cast<lib::asio::io_context&>(*m_io_service));
 
         m_state = READY;
         ec = lib::error_code();
@@ -531,16 +531,15 @@ public:
     {
         using lib::asio::ip::tcp;
         tcp::resolver r(*m_io_service);
-        tcp::resolver::query query(host, service);
-        tcp::resolver::iterator endpoint_iterator = r.resolve(query);
-        tcp::resolver::iterator end;
-        if (endpoint_iterator == end) {
+        lib::error_code resolve_ec;
+        tcp::resolver::results_type results = r.resolve(host, service, resolve_ec);
+        if (resolve_ec || results.empty()) {
             m_elog->write(log::elevel::library,
                 "asio::listen could not resolve the supplied host or service");
             ec = make_error_code(error::invalid_host_service);
             return;
         }
-        listen(*endpoint_iterator,ec);
+        listen(results.begin()->endpoint(),ec);
     }
 
     /// Set up endpoint for listening on a host and service
@@ -661,7 +660,7 @@ public:
      */
     void start_perpetual() {
         m_work = lib::make_shared<lib::asio::io_service::work>(
-            lib::ref(*m_io_service)
+            static_cast<lib::asio::io_context&>(*m_io_service)
         );
     }
 
@@ -827,7 +826,7 @@ protected:
         // Create a resolver
         if (!m_resolver) {
             m_resolver = lib::make_shared<lib::asio::ip::tcp::resolver>(
-                lib::ref(*m_io_service));
+                static_cast<lib::asio::io_context&>(*m_io_service));
         }
 
         tcon->set_uri(u);
@@ -859,8 +858,6 @@ protected:
             port = pu->get_port_str();
         }
 
-        tcp::resolver::query query(host,port);
-
         if (m_alog->static_test(log::alevel::devel)) {
             m_alog->write(log::alevel::devel,
                 "starting async DNS resolve for "+host+":"+port);
@@ -881,7 +878,8 @@ protected:
 
         if (config::enable_multithreading) {
             m_resolver->async_resolve(
-                query,
+                host,
+                port,
                 tcon->get_strand()->wrap(lib::bind(
                     &type::handle_resolve,
                     this,
@@ -894,7 +892,8 @@ protected:
             );
         } else {
             m_resolver->async_resolve(
-                query,
+                host,
+                port,
                 lib::bind(
                     &type::handle_resolve,
                     this,
@@ -942,10 +941,10 @@ protected:
 
     void handle_resolve(transport_con_ptr tcon, timer_ptr dns_timer,
         connect_handler callback, lib::asio::error_code const & ec,
-        lib::asio::ip::tcp::resolver::iterator iterator)
+        lib::asio::ip::tcp::resolver::results_type results)
     {
         if (ec == lib::asio::error::operation_aborted ||
-            lib::asio::is_neg(dns_timer->expires_from_now()))
+            lib::asio::is_neg(dns_timer))
         {
             m_alog->write(log::alevel::devel,"async_resolve cancelled");
             return;
@@ -963,9 +962,8 @@ protected:
             std::stringstream s;
             s << "Async DNS resolve successful. Results: ";
 
-            lib::asio::ip::tcp::resolver::iterator it, end;
-            for (it = iterator; it != end; ++it) {
-                s << (*it).endpoint() << " ";
+            for (const auto & entry : results) {
+                s << entry.endpoint() << " ";
             }
 
             m_alog->write(log::alevel::devel,s.str());
@@ -990,7 +988,7 @@ protected:
         if (config::enable_multithreading) {
             lib::asio::async_connect(
                 tcon->get_raw_socket(),
-                iterator,
+                results,
                 tcon->get_strand()->wrap(lib::bind(
                     &type::handle_connect,
                     this,
@@ -1003,7 +1001,7 @@ protected:
         } else {
             lib::asio::async_connect(
                 tcon->get_raw_socket(),
-                iterator,
+                results,
                 lib::bind(
                     &type::handle_connect,
                     this,
@@ -1053,7 +1051,7 @@ protected:
         connect_handler callback, lib::asio::error_code const & ec)
     {
         if (ec == lib::asio::error::operation_aborted ||
-            lib::asio::is_neg(con_timer->expires_from_now()))
+            lib::asio::is_neg(con_timer))
         {
             m_alog->write(log::alevel::devel,"async_connect cancelled");
             return;

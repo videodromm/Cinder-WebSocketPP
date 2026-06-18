@@ -312,7 +312,7 @@ public:
      */
     timer_ptr set_timer(long duration, timer_handler callback) {
         timer_ptr new_timer = lib::make_shared<lib::asio::steady_timer>(
-            lib::ref(*m_io_service),
+            static_cast<lib::asio::io_context&>(*m_io_service),
             lib::asio::milliseconds(duration)
         );
 
@@ -462,7 +462,7 @@ protected:
 
         if (config::enable_multithreading) {
             m_strand = lib::make_shared<lib::asio::io_service::strand>(
-                lib::ref(*io_service));
+                static_cast<lib::asio::io_context&>(*io_service));
         }
 
         lib::error_code ec = socket_con_type::init_asio(io_service, m_strand,
@@ -573,7 +573,7 @@ protected:
         lib::error_code const & ec)
     {
         if (ec == transport::error::operation_aborted ||
-            (post_timer && lib::asio::is_neg(post_timer->expires_from_now())))
+            (post_timer && lib::asio::is_neg(post_timer)))
         {
             m_alog.write(log::alevel::devel,"post_init cancelled");
             return;
@@ -679,7 +679,7 @@ protected:
         // Whatever aborted it will be issuing the callback so we are safe to
         // return
         if (ec == lib::asio::error::operation_aborted ||
-            lib::asio::is_neg(m_proxy_data->timer->expires_from_now()))
+            lib::asio::is_neg(m_proxy_data->timer))
         {
             m_elog.write(log::elevel::devel,"write operation aborted");
             return;
@@ -751,7 +751,7 @@ protected:
         // Whatever aborted it will be issuing the callback so we are safe to
         // return
         if (ec == lib::asio::error::operation_aborted ||
-            lib::asio::is_neg(m_proxy_data->timer->expires_from_now()))
+            lib::asio::is_neg(m_proxy_data->timer))
         {
             m_elog.write(log::elevel::devel,"read operation aborted");
             return;
@@ -1095,7 +1095,7 @@ protected:
         callback, lib::asio::error_code const & ec)
     {
         if (ec == lib::asio::error::operation_aborted ||
-            lib::asio::is_neg(shutdown_timer->expires_from_now()))
+            lib::asio::is_neg(shutdown_timer))
         {
             m_alog.write(log::alevel::devel,"async_shutdown cancelled");
             return;

@@ -49,9 +49,44 @@
         static_assert(false, "The minimum version of standalone Asio is 1.8.0");
     #endif
     
-    #include <asio.hpp>
+    #include <asio/asio.hpp>
     #include <asio/steady_timer.hpp>
-    #include <websocketpp/common/chrono.hpp> 
+    #include <websocketpp/common/chrono.hpp>
+
+    // Legacy struct for WebSocketPP on standalone Asio >= 1.13
+    #if (ASIO_VERSION/100000) == 1 && ((ASIO_VERSION/100)%1000) >= 13
+    #include <asio/io_context_strand.hpp>
+    #include <asio/executor_work_guard.hpp>
+    namespace asio {
+        struct io_service : io_context {
+            using io_context::io_context;
+            using io_context::run;
+            using io_context::run_one;
+            using io_context::poll;
+            using io_context::poll_one;
+            using io_context::stop;
+            using io_context::stopped;
+
+            template<typename Handler>
+            void post( Handler &&handler ) {
+                asio::post( get_executor(), std::forward<Handler>( handler ) );
+            }
+
+            template<typename Handler>
+            void dispatch( Handler &&handler ) {
+                asio::dispatch( get_executor(), std::forward<Handler>( handler ) );
+            }
+
+            void reset() { restart(); }
+
+            typedef io_context::strand strand;
+            struct work : executor_work_guard<io_context::executor_type> {
+                explicit work( io_service &svc )
+                    : executor_work_guard<io_context::executor_type>( svc.get_executor() ) {}
+            };
+        };
+    }
+    #endif
 #else
     #include <boost/version.hpp>
     
@@ -84,6 +119,10 @@ namespace lib {
         template <typename T>
         bool is_neg(T duration) {
             return duration.count() < 0;
+        }
+        template <typename Timer>
+        bool is_neg(const lib::shared_ptr<Timer> &timer) {
+            return timer->expiry() <= lib::chrono::steady_clock::now();
         }
         inline lib::chrono::milliseconds milliseconds(long duration) {
             return lib::chrono::milliseconds(duration);
