@@ -53,8 +53,13 @@
     #include <asio/steady_timer.hpp>
     #include <websocketpp/common/chrono.hpp>
 
-    // Legacy struct for WebSocketPP on standalone Asio >= 1.13
-    #if (ASIO_VERSION/100000) == 1 && ((ASIO_VERSION/100)%1000) >= 13
+    // Legacy struct for WebSocketPP on standalone Asio >= 1.13.
+    // Only needed when the Asio distribution itself was built with ASIO_NO_DEPRECATED:
+    // Cinder's bundled Asio does not define it, so asio/io_service.hpp already provides
+    // "typedef io_context io_service;" (plus the deprecated post()/dispatch()/reset()/strand/work
+    // members directly on io_context) - redeclaring io_service as a distinct struct here would
+    // conflict with that typedef (error C2371: redefinition; different base types).
+    #if (ASIO_VERSION/100000) == 1 && ((ASIO_VERSION/100)%1000) >= 13 && defined(ASIO_NO_DEPRECATED)
     #include <asio/io_context_strand.hpp>
     #include <asio/executor_work_guard.hpp>
     namespace asio {

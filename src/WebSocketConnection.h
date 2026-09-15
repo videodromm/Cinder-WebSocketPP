@@ -48,9 +48,18 @@
 #define _WEBSOCKETPP_CPP11_MEMORY_
 #define _WEBSOCKETPP_CPP11_THREAD_
 #define _WEBSOCKETPP_CPP11_RANDOM_DEVICE_
+// MSVC never sets __cplusplus to the real standard version (unless /Zc:__cplusplus is passed),
+// so websocketpp/common/cpp11.hpp's "#if __cplusplus >= 201103L" auto-detect never fires here;
+// without this, type_traits.hpp falls back to <boost/aligned_storage.hpp>, which no longer exists
+// now that boost has been removed from this codebase.
+#define _WEBSOCKETPP_CPP11_TYPE_TRAITS_
 #define BOOST_DATE_TIME_NO_LIB
 #define BOOST_REGEX_NO_LIB
 
+// Without this, websocketpp/common/asio.hpp falls back to <boost/asio.hpp> (also removed).
+#if ! defined( ASIO_STANDALONE )
+#define ASIO_STANDALONE 1
+#endif
 #include "asio/asio.hpp"
 #include "websocketpp/common/random.hpp"
 #include "websocketpp/common/thread.hpp"
