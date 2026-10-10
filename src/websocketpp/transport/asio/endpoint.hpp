@@ -131,7 +131,7 @@ public:
       , m_io_service(src.m_io_service)
       , m_external_io_service(src.m_external_io_service)
       , m_acceptor(src.m_acceptor)
-      , m_listen_backlog(lib::asio::socket_base::max_connections)
+      , m_listen_backlog(lib::asio::socket_base::max_listen_connections)
       , m_reuse_addr(src.m_reuse_addr)
       , m_elog(src.m_elog)
       , m_alog(src.m_alog)
@@ -155,7 +155,7 @@ public:
             rhs.m_io_service = NULL;
             rhs.m_external_io_service = false;
             rhs.m_acceptor = NULL;
-            rhs.m_listen_backlog = lib::asio::socket_base::max_connections;
+            rhs.m_listen_backlog = lib::asio::socket_base::max_listen_connections;
             rhs.m_state = UNINITIALIZED;
             
             // TODO: this needs to be updated

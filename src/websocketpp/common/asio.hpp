@@ -54,12 +54,16 @@
     #include <websocketpp/common/chrono.hpp>
 
     // Legacy struct for WebSocketPP on standalone Asio >= 1.13.
-    // Only needed when the Asio distribution itself was built with ASIO_NO_DEPRECATED:
-    // Cinder's bundled Asio does not define it, so asio/io_service.hpp already provides
-    // "typedef io_context io_service;" (plus the deprecated post()/dispatch()/reset()/strand/work
-    // members directly on io_context) - redeclaring io_service as a distinct struct here would
-    // conflict with that typedef (error C2371: redefinition; different base types).
-    #if (ASIO_VERSION/100000) == 1 && ((ASIO_VERSION/100)%1000) >= 13 && defined(ASIO_NO_DEPRECATED)
+    // Only needed when Asio no longer provides io_service itself:
+    // - Windows Cinder bundles Asio 1.18.1, whose asio/io_service.hpp has
+    //   "typedef io_context io_service;" (plus the deprecated post()/dispatch()/reset()/strand/work
+    //   members on io_context) - redeclaring io_service as a struct there would conflict with that
+    //   typedef (error C2371: redefinition; different base types), so the shim stays off;
+    // - Mac Cinder (current upstream) bundles Asio 1.36, which removed io_service.hpp entirely
+    //   (Asio 1.33+), so the shim is required;
+    // - any Asio built with ASIO_NO_DEPRECATED also needs it.
+    #if (ASIO_VERSION/100000) == 1 && ((ASIO_VERSION/100)%1000) >= 13 \
+        && ( defined(ASIO_NO_DEPRECATED) || !__has_include(<asio/io_service.hpp>) )
     #include <asio/io_context_strand.hpp>
     #include <asio/executor_work_guard.hpp>
     namespace asio {
